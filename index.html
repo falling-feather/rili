@@ -13,23 +13,18 @@
             padding: 0;
             font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             overflow-x: hidden;
-            background-color: #333;
+            background-color: #1a1a1a; /* 确保 body 也是深色 */
         }
-        .bg-cover-image {
-            background-size: cover;
-            background-position: center;
-            background-repeat: no-repeat;
-            transition: background-image 0.5s ease-in-out;
-        }
+        /* 移除了 .bg-cover-image */
         .glass-morphism {
-            background: rgba(255, 255, 255, 0.15);
+            background: rgba(255, 255, 255, 0.1); /* 稍微调低了透明度以适应纯深色背景 */
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.15);
             box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
         }
         .glass-input {
-            background: rgba(0, 0, 0, 0.2);
+            background: rgba(0, 0, 0, 0.3);
             backdrop-filter: blur(5px);
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
@@ -41,18 +36,16 @@
         .fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }
         .fade-enter-from, .fade-leave-to { opacity: 0; }
         
-        input::placeholder { color: rgba(255, 255, 255, 0.6); }
+        input::placeholder { color: rgba(255, 255, 255, 0.5); }
     </style>
 </head>
 <body>
-    <div id="app" class="min-h-screen flex flex-col items-center justify-between text-white relative bg-cover-image" :style="backgroundStyle">
+    <div id="app" class="min-h-screen flex flex-col items-center justify-between text-white relative bg-[#1a1a1a]">
         
-        <div class="absolute inset-0 bg-black/30 z-0"></div>
-
         <div class="z-10 w-full max-w-6xl p-4 flex justify-between items-start">
             <div class="flex items-center gap-2 text-xs opacity-70 hover:opacity-100 transition cursor-pointer" @click="showConfig = true">
                 <i class="fas fa-cog"></i> 
-                <span>{{ githubConfig.token ? '已连接云端' : '未连接' }}</span>
+                <span>{{ ghConf.token ? '已连接云端' : '未连接' }}</span>
             </div>
             <div v-if="loading" class="text-xs opacity-80"><i class="fas fa-sync fa-spin"></i></div>
         </div>
@@ -70,18 +63,20 @@
                         <button @click="showEngineSelect = !showEngineSelect" class="p-2 rounded-lg hover:bg-white/10 transition flex items-center gap-2 text-sm font-bold opacity-90">
                             <i :class="currentEngineIcon"></i>
                         </button>
-                        <div v-if="showEngineSelect" class="absolute top-full left-0 mt-2 glass-morphism rounded-lg overflow-hidden flex flex-col min-w-[100px] animate-fade-in">
-                            <button v-for="(eng, key) in engines" :key="key" @click="selectEngine(key)" class="px-4 py-2 text-left hover:bg-white/20 text-sm flex items-center gap-2">
-                                <i :class="eng.icon"></i> {{ eng.name }}
-                            </button>
-                        </div>
+                        <transition name="fade">
+                            <div v-if="showEngineSelect" class="absolute top-full left-0 mt-2 glass-morphism rounded-lg overflow-hidden flex flex-col min-w-[120px] z-30">
+                                <button v-for="(eng, key) in engines" :key="key" @click="selectEngine(key)" class="px-4 py-3 text-left hover:bg-white/10 text-sm flex items-center gap-3 transition">
+                                    <i :class="eng.icon" class="w-4 text-center"></i> {{ eng.name }}
+                                </button>
+                            </div>
+                        </transition>
                     </div>
                 </div>
                 <input 
                     v-model="searchQuery" 
                     @keyup.enter="doSearch"
                     type="text" 
-                    class="w-full glass-input rounded-full py-4 pl-16 pr-14 text-lg text-white outline-none focus:bg-black/40 transition shadow-lg placeholder-gray-300"
+                    class="w-full glass-input rounded-full py-4 pl-16 pr-14 text-lg text-white outline-none focus:bg-black/40 transition shadow-lg placeholder-gray-400"
                     :placeholder="'在 ' + engines[currentEngineKey].name + ' 中搜索...'"
                 >
                 <button @click="doSearch" class="absolute right-3 top-1/2 -translate-y-1/2 p-2 hover:text-blue-400 transition opacity-80 hover:opacity-100">
@@ -89,15 +84,15 @@
                 </button>
             </div>
 
-            <div class="flex flex-wrap justify-center gap-4 mt-8 w-full">
-                <a v-for="(link, i) in links" :key="i" :href="link.url" target="_blank" class="flex flex-col items-center gap-2 group cursor-pointer p-2 rounded-xl hover:bg-white/10 transition w-20">
-                    <div class="w-12 h-12 rounded-2xl glass-morphism flex items-center justify-center text-xl group-hover:scale-110 transition shadow-lg">
+            <div class="flex flex-wrap justify-center gap-4 mt-10 w-full">
+                <a v-for="(link, i) in links" :key="i" :href="link.url" target="_blank" class="flex flex-col items-center gap-2 group cursor-pointer p-2 rounded-xl hover:bg-white/5 transition w-20">
+                    <div class="w-12 h-12 rounded-2xl glass-morphism flex items-center justify-center text-xl group-hover:scale-110 transition shadow-lg text-shadow">
                         {{ link.name.charAt(0).toUpperCase() }}
                     </div>
-                    <span class="text-xs opacity-80 group-hover:opacity-100 truncate w-full text-center">{{ link.name }}</span>
+                    <span class="text-xs opacity-70 group-hover:opacity-100 truncate w-full text-center">{{ link.name }}</span>
                 </a>
-                <button @click="addLink" class="flex flex-col items-center gap-2 group cursor-pointer p-2 rounded-xl hover:bg-white/10 transition w-20 opacity-60 hover:opacity-100">
-                    <div class="w-12 h-12 rounded-2xl border border-white/30 border-dashed flex items-center justify-center text-xl">
+                <button @click="addLink" class="flex flex-col items-center gap-2 group cursor-pointer p-2 rounded-xl hover:bg-white/5 transition w-20 opacity-60 hover:opacity-100">
+                    <div class="w-12 h-12 rounded-2xl border border-white/20 border-dashed flex items-center justify-center text-xl">
                         <i class="fas fa-plus"></i>
                     </div>
                     <span class="text-xs">添加</span>
@@ -111,9 +106,9 @@
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="font-bold text-lg">日历</h3>
                     <div class="flex gap-1 text-xs">
-                        <button @click="changeMonth(-1)" class="w-6 h-6 hover:bg-white/20 rounded"><i class="fas fa-chevron-left"></i></button>
-                        <button @click="toToday" class="px-2 hover:bg-white/20 rounded">今</button>
-                        <button @click="changeMonth(1)" class="w-6 h-6 hover:bg-white/20 rounded"><i class="fas fa-chevron-right"></i></button>
+                        <button @click="changeMonth(-1)" class="w-8 h-8 flex items-center justify-center hover:bg-white/10 rounded transition"><i class="fas fa-chevron-left"></i></button>
+                        <button @click="toToday" class="px-3 hover:bg-white/10 rounded transition">今</button>
+                        <button @click="changeMonth(1)" class="w-8 h-8 flex items-center justify-center hover:bg-white/10 rounded transition"><i class="fas fa-chevron-right"></i></button>
                     </div>
                 </div>
                 <div class="grid grid-cols-7 text-center text-xs opacity-60 mb-2 font-mono">
@@ -122,11 +117,11 @@
                 <div class="grid grid-cols-7 gap-1 flex-1">
                     <div v-for="p in startPad" :key="'p'+p"></div>
                     <div v-for="d in monthDays" :key="d" @click="selDate(d)"
-                         class="rounded-lg flex flex-col items-center justify-center cursor-pointer relative hover:bg-white/20 transition text-sm"
-                         :class="{'bg-blue-500/40 border border-blue-400': isSel(d), 'border border-emerald-400/50': isToday(d)}">
+                         class="rounded-lg flex flex-col items-center justify-center cursor-pointer relative hover:bg-white/10 transition text-sm"
+                         :class="{'bg-blue-500/30 border border-blue-400/50': isSel(d), 'ring-1 ring-emerald-400/50': isToday(d) && !isSel(d)}">
                         <span>{{d}}</span>
-                        <div class="flex gap-0.5 mt-1">
-                            <div v-for="(dot, di) in getDots(d)" :key="di" class="w-1 h-1 rounded-full" :class="dot.done ? 'bg-gray-400' : 'bg-blue-400'"></div>
+                        <div class="flex gap-0.5 mt-1 h-1">
+                            <div v-for="(dot, di) in getDots(d)" :key="di" class="w-1 h-1 rounded-full" :class="dot.done ? 'bg-gray-500' : 'bg-blue-400'"></div>
                         </div>
                     </div>
                 </div>
@@ -146,46 +141,46 @@
                         <i class="far fa-calendar-check text-4xl mb-2"></i>
                         <p>今日暂无安排</p>
                     </div>
-                    <div v-for="(ev, idx) in currEvents" :key="idx" class="flex items-center gap-3 bg-black/20 p-3 rounded-xl hover:bg-black/30 transition group">
-                        <button @click="togEvent(idx)" class="w-5 h-5 rounded-full border border-white/40 flex items-center justify-center transition" :class="{'bg-emerald-500 border-none': ev.done}">
+                    <div v-for="(ev, idx) in currEvents" :key="idx" class="flex items-center gap-3 bg-black/20 p-3 rounded-xl hover:bg-black/30 transition group border border-transparent hover:border-white/10">
+                        <button @click="togEvent(idx)" class="w-5 h-5 rounded-full border border-white/40 flex items-center justify-center transition flex-shrink-0" :class="{'bg-emerald-500 border-none': ev.done}">
                             <i v-if="ev.done" class="fas fa-check text-[10px]"></i>
                         </button>
                         <input v-model="ev.text" @change="save" class="flex-1 bg-transparent outline-none text-sm" :class="{'opacity-50 line-through': ev.done}">
-                        <button @click="delEvent(idx)" class="opacity-0 group-hover:opacity-100 hover:text-red-400 transition"><i class="fas fa-trash"></i></button>
+                        <button @click="delEvent(idx)" class="opacity-0 group-hover:opacity-100 hover:text-red-400 transition px-2"><i class="fas fa-trash"></i></button>
                     </div>
                 </div>
 
                 <div class="mt-4 flex gap-2">
-                    <input v-model="newEvent" @keyup.enter="addEvent" placeholder="添加新日程..." class="flex-1 glass-input rounded-lg px-4 py-2 text-sm outline-none focus:bg-black/40 transition">
-                    <button @click="addEvent" class="px-4 py-2 bg-blue-600/80 hover:bg-blue-500 rounded-lg text-sm font-bold backdrop-blur-sm transition">添加</button>
+                    <input v-model="newEvent" @keyup.enter="addEvent" placeholder="添加新日程..." class="flex-1 glass-input rounded-lg px-4 py-3 text-sm outline-none focus:bg-black/40 transition">
+                    <button @click="addEvent" class="px-6 py-3 bg-blue-600/80 hover:bg-blue-500 rounded-lg text-sm font-bold backdrop-blur-sm transition">添加</button>
                 </div>
             </div>
 
         </div>
 
-        <div v-if="showConfig" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
-            <div class="glass-morphism p-6 rounded-2xl w-full max-w-md m-4">
-                <h3 class="text-xl font-bold mb-4">云端设置</h3>
+        <div v-if="showConfig" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
+            <div class="glass-morphism p-6 rounded-2xl w-full max-w-md">
+                <h3 class="text-xl font-bold mb-6">云端设置 (GitHub)</h3>
                 <div class="space-y-4 text-sm">
                     <div>
-                        <label class="block mb-1 opacity-70">GitHub Token</label>
-                        <input type="password" v-model="tempConf.token" class="w-full glass-input p-2 rounded outline-none">
+                        <label class="block mb-1.5 opacity-70">GitHub Token (需勾选 repo 权限)</label>
+                        <input type="password" v-model="tempConf.token" class="w-full glass-input p-3 rounded-lg outline-none focus:border-blue-400/50 transition">
                     </div>
                     <div class="grid grid-cols-2 gap-4">
                         <div>
-                            <label class="block mb-1 opacity-70">用户名</label>
-                            <input v-model="tempConf.owner" class="w-full glass-input p-2 rounded outline-none">
+                            <label class="block mb-1.5 opacity-70">用户名 (Owner)</label>
+                            <input v-model="tempConf.owner" class="w-full glass-input p-3 rounded-lg outline-none focus:border-blue-400/50 transition">
                         </div>
                         <div>
-                            <label class="block mb-1 opacity-70">仓库名</label>
-                            <input v-model="tempConf.repo" class="w-full glass-input p-2 rounded outline-none">
+                            <label class="block mb-1.5 opacity-70">仓库名 (Repo)</label>
+                            <input v-model="tempConf.repo" class="w-full glass-input p-3 rounded-lg outline-none focus:border-blue-400/50 transition">
                         </div>
                     </div>
-                    <p class="text-xs opacity-50">* 配置将加密存储在本地浏览器中。背景图请在仓库根目录上传 "beijing.jpg"。</p>
+                    <p class="text-xs opacity-50 pt-2">* 配置将安全存储在本地浏览器中，不会上传。</p>
                 </div>
-                <div class="mt-6 flex justify-end gap-3">
-                    <button @click="showConfig = false" class="px-4 py-2 rounded hover:bg-white/10 transition">取消</button>
-                    <button @click="saveConf" class="px-4 py-2 bg-blue-600 rounded hover:bg-blue-500 transition">保存并同步</button>
+                <div class="mt-8 flex justify-end gap-3">
+                    <button @click="showConfig = false" class="px-4 py-2 rounded-lg hover:bg-white/10 transition">取消</button>
+                    <button @click="saveConf" class="px-6 py-2 bg-blue-600 rounded-lg hover:bg-blue-500 transition font-bold">保存并连接</button>
                 </div>
             </div>
         </div>
@@ -193,14 +188,14 @@
     </div>
 
     <script>
-        const { createApp, ref, computed, onMounted, watch } = Vue;
+        const { createApp, ref, computed, onMounted } = Vue;
 
         createApp({
             setup() {
-                const STORAGE_KEY = 'lime_start_cache';
+                const STORAGE_KEY = 'lime_start_cache_v2';
                 const showConfig = ref(false);
                 const loading = ref(false);
-                const bgUrl = ref('');
+                // 移除了 bgUrl
                 
                 const ghConf = ref({ token: '', owner: '', repo: '', path: 'data.json' });
                 const tempConf = ref({...ghConf.value});
@@ -222,8 +217,7 @@
 
                 const links = ref([
                     {name: 'GitHub', url: 'https://github.com'},
-                    {name: 'Bilibili', url: 'https://bilibili.com'},
-                    {name: 'Gmail', url: 'https://mail.google.com'}
+                    {name: 'Bilibili', url: 'https://bilibili.com'}
                 ]);
                 const calendar = ref({});
 
@@ -232,9 +226,7 @@
                 const curY = ref(today.getFullYear());
                 const selD = ref(today.getDate());
                 
-                const backgroundStyle = computed(() => {
-                    return bgUrl.value ? { backgroundImage: `url(${bgUrl.value})` } : { backgroundColor: '#2d3748' };
-                });
+                // 移除了 backgroundStyle computed
 
                 const currentEngineIcon = computed(() => engines[currentEngineKey.value].icon);
 
@@ -261,9 +253,7 @@
                     if (conf) {
                         ghConf.value = JSON.parse(conf);
                         tempConf.value = {...ghConf.value};
-                        if (ghConf.value.owner && ghConf.value.repo) {
-                            bgUrl.value = `https://raw.githubusercontent.com/${ghConf.value.owner}/${ghConf.value.repo}/main/beijing.jpg`;
-                        }
+                        // 移除了设置 bgUrl 的逻辑
                     }
 
                     if (cache) {
@@ -271,7 +261,7 @@
                             const data = JSON.parse(cache);
                             links.value = data.links || links.value;
                             calendar.value = data.calendar || {};
-                            if(data.engine) currentEngineKey.value = data.engine;
+                            if(data.engine && engines[data.engine]) currentEngineKey.value = data.engine;
                         } catch(e) {}
                     }
                 };
@@ -280,7 +270,7 @@
                 const b64_to_utf8 = (str) => decodeURIComponent(escape(window.atob(str)));
 
                 const syncCloud = async (isWrite = false) => {
-                    if (!ghConf.value.token) return;
+                    if (!ghConf.value.token || !ghConf.value.owner || !ghConf.value.repo) return;
                     loading.value = true;
                     const { owner, repo, path, token } = ghConf.value;
                     const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
@@ -292,15 +282,15 @@
                                 const json = await res.json();
                                 fileSha.value = json.sha;
                                 const content = JSON.parse(b64_to_utf8(json.content));
-                                links.value = content.links;
-                                calendar.value = content.calendar;
-                                if(content.engine) currentEngineKey.value = content.engine;
+                                links.value = content.links || [];
+                                calendar.value = content.calendar || {};
+                                if(content.engine && engines[content.engine]) currentEngineKey.value = content.engine;
                                 cacheLocal();
                             }
                         } else {
                             const data = { links: links.value, calendar: calendar.value, engine: currentEngineKey.value };
                             const body = {
-                                message: 'Update',
+                                message: 'Update via Web',
                                 content: utf8_to_b64(JSON.stringify(data)),
                                 sha: fileSha.value
                             };
@@ -315,7 +305,7 @@
                             }
                         }
                     } catch (e) {
-                        console.error(e);
+                        console.error("Cloud sync error:", e);
                     } finally {
                         loading.value = false;
                     }
@@ -337,7 +327,7 @@
                     ghConf.value = {...tempConf.value};
                     localStorage.setItem('gh_config', JSON.stringify(ghConf.value));
                     showConfig.value = false;
-                    bgUrl.value = `https://raw.githubusercontent.com/${ghConf.value.owner}/${ghConf.value.repo}/main/beijing.jpg`;
+                    // 移除了 bgUrl 设置
                     syncCloud(false);
                 };
 
@@ -353,8 +343,8 @@
                 };
 
                 const addLink = () => {
-                    const name = prompt('Name');
-                    const url = prompt('URL');
+                    const name = prompt('网站名称 (Name)');
+                    const url = prompt('网址 (URL, 包含 http://)');
                     if (name && url) { links.value.push({name, url}); save(); }
                 };
 
@@ -387,7 +377,7 @@
                 onMounted(() => {
                     loadLocal();
                     if(ghConf.value.token) syncCloud(false);
-                    else showConfig.value = true;
+                    else setTimeout(() => showConfig.value = true, 500);
                 });
 
                 return {
@@ -397,7 +387,7 @@
                     searchQuery, doSearch, links, addLink,
                     curM, curY, monthDays, startPad, changeMonth, toToday, selDate, isSel, isToday,
                     selDateStr, currEvents, progressStr, newEvent, addEvent, togEvent, delEvent, save,
-                    getDots, backgroundStyle
+                    getDots
                 };
             }
         }).mount('#app');
