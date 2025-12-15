@@ -13,11 +13,10 @@
             padding: 0;
             font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             overflow-x: hidden;
-            background-color: #1a1a1a; /* 确保 body 也是深色 */
+            background-color: #1a1a1a;
         }
-        /* 移除了 .bg-cover-image */
         .glass-morphism {
-            background: rgba(255, 255, 255, 0.1); /* 稍微调低了透明度以适应纯深色背景 */
+            background: rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
             border: 1px solid rgba(255, 255, 255, 0.15);
@@ -28,14 +27,17 @@
             backdrop-filter: blur(5px);
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
-        .text-shadow {
-            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
-        }
+        .text-shadow { text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        .fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }
-        .fade-enter-from, .fade-leave-to { opacity: 0; }
         
+        /* 状态指示灯动画 */
+        .status-dot { height: 8px; width: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+        .status-online { background-color: #10b981; box-shadow: 0 0 8px #10b981; }
+        .status-offline { background-color: #ef4444; }
+        .status-loading { background-color: #f59e0b; animation: pulse 1s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+
         input::placeholder { color: rgba(255, 255, 255, 0.5); }
     </style>
 </head>
@@ -43,11 +45,13 @@
     <div id="app" class="min-h-screen flex flex-col items-center justify-between text-white relative bg-[#1a1a1a]">
         
         <div class="z-10 w-full max-w-6xl p-4 flex justify-between items-start">
-            <div class="flex items-center gap-2 text-xs opacity-70 hover:opacity-100 transition cursor-pointer" @click="showConfig = true">
-                <i class="fas fa-cog"></i> 
-                <span>{{ ghConf.token ? '已连接云端' : '未连接' }}</span>
+            <div class="flex items-center gap-2 text-xs opacity-70 hover:opacity-100 transition cursor-pointer glass-morphism px-3 py-1.5 rounded-full" @click="showConfig = true">
+                <span class="status-dot" :class="statusClass"></span>
+                <span>{{ statusText }}</span>
             </div>
-            <div v-if="loading" class="text-xs opacity-80"><i class="fas fa-sync fa-spin"></i></div>
+            <button @click="syncCloud(false)" class="text-xs opacity-50 hover:opacity-100 p-2" title="重试连接">
+                <i class="fas fa-sync" :class="{'fa-spin': loading}"></i>
+            </button>
         </div>
 
         <div class="z-10 w-full max-w-3xl flex flex-col items-center mt-10 mb-8 px-4">
@@ -63,13 +67,11 @@
                         <button @click="showEngineSelect = !showEngineSelect" class="p-2 rounded-lg hover:bg-white/10 transition flex items-center gap-2 text-sm font-bold opacity-90">
                             <i :class="currentEngineIcon"></i>
                         </button>
-                        <transition name="fade">
-                            <div v-if="showEngineSelect" class="absolute top-full left-0 mt-2 glass-morphism rounded-lg overflow-hidden flex flex-col min-w-[120px] z-30">
-                                <button v-for="(eng, key) in engines" :key="key" @click="selectEngine(key)" class="px-4 py-3 text-left hover:bg-white/10 text-sm flex items-center gap-3 transition">
-                                    <i :class="eng.icon" class="w-4 text-center"></i> {{ eng.name }}
-                                </button>
-                            </div>
-                        </transition>
+                        <div v-if="showEngineSelect" class="absolute top-full left-0 mt-2 glass-morphism rounded-lg overflow-hidden flex flex-col min-w-[120px] z-30">
+                            <button v-for="(eng, key) in engines" :key="key" @click="selectEngine(key)" class="px-4 py-3 text-left hover:bg-white/10 text-sm flex items-center gap-3 transition">
+                                <i :class="eng.icon" class="w-4 text-center"></i> {{ eng.name }}
+                            </button>
+                        </div>
                     </div>
                 </div>
                 <input 
@@ -158,29 +160,31 @@
 
         </div>
 
-        <div v-if="showConfig" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
+        <div v-if="showConfig" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
             <div class="glass-morphism p-6 rounded-2xl w-full max-w-md">
-                <h3 class="text-xl font-bold mb-6">云端设置 (GitHub)</h3>
+                <h3 class="text-xl font-bold mb-6">云端设置</h3>
                 <div class="space-y-4 text-sm">
                     <div>
-                        <label class="block mb-1.5 opacity-70">GitHub Token (需勾选 repo 权限)</label>
-                        <input type="password" v-model="tempConf.token" class="w-full glass-input p-3 rounded-lg outline-none focus:border-blue-400/50 transition">
+                        <label class="block mb-1.5 opacity-70">GitHub Token</label>
+                        <input type="password" v-model="tempConf.token" class="w-full glass-input p-3 rounded-lg outline-none">
                     </div>
                     <div class="grid grid-cols-2 gap-4">
                         <div>
-                            <label class="block mb-1.5 opacity-70">用户名 (Owner)</label>
-                            <input v-model="tempConf.owner" class="w-full glass-input p-3 rounded-lg outline-none focus:border-blue-400/50 transition">
+                            <label class="block mb-1.5 opacity-70">Owner</label>
+                            <input v-model="tempConf.owner" class="w-full glass-input p-3 rounded-lg outline-none">
                         </div>
                         <div>
-                            <label class="block mb-1.5 opacity-70">仓库名 (Repo)</label>
-                            <input v-model="tempConf.repo" class="w-full glass-input p-3 rounded-lg outline-none focus:border-blue-400/50 transition">
+                            <label class="block mb-1.5 opacity-70">Repo</label>
+                            <input v-model="tempConf.repo" class="w-full glass-input p-3 rounded-lg outline-none">
                         </div>
                     </div>
-                    <p class="text-xs opacity-50 pt-2">* 配置将安全存储在本地浏览器中，不会上传。</p>
+                    <p class="text-xs opacity-50 text-yellow-500 pt-2" v-if="isOffline">
+                        <i class="fas fa-exclamation-triangle"></i> 当前网络连接 GitHub 困难，已切换为本地模式。
+                    </p>
                 </div>
                 <div class="mt-8 flex justify-end gap-3">
-                    <button @click="showConfig = false" class="px-4 py-2 rounded-lg hover:bg-white/10 transition">取消</button>
-                    <button @click="saveConf" class="px-6 py-2 bg-blue-600 rounded-lg hover:bg-blue-500 transition font-bold">保存并连接</button>
+                    <button @click="showConfig = false" class="px-4 py-2 rounded-lg hover:bg-white/10 transition">关闭</button>
+                    <button @click="saveConf" class="px-6 py-2 bg-blue-600 rounded-lg hover:bg-blue-500 transition font-bold">保存并重试</button>
                 </div>
             </div>
         </div>
@@ -192,10 +196,11 @@
 
         createApp({
             setup() {
-                const STORAGE_KEY = 'lime_start_cache_v2';
+                const STORAGE_KEY = 'lime_start_cache_v3';
                 const showConfig = ref(false);
                 const loading = ref(false);
-                // 移除了 bgUrl
+                const isOffline = ref(false); // 新增：是否处于离线模式
+                const connectionError = ref(''); // 新增：错误信息
                 
                 const ghConf = ref({ token: '', owner: '', repo: '', path: 'data.json' });
                 const tempConf = ref({...ghConf.value});
@@ -204,6 +209,20 @@
                 const now = ref(new Date());
                 const timeString = computed(() => now.value.toLocaleTimeString('en-US', {hour12: false, hour:'2-digit', minute:'2-digit'}));
                 const dateString = computed(() => now.value.toLocaleDateString('zh-CN', {weekday:'long', month:'long', day:'numeric'}));
+
+                // 计算顶部状态栏的显示
+                const statusClass = computed(() => {
+                    if (loading.value) return 'status-loading';
+                    if (isOffline.value || !ghConf.value.token) return 'status-offline';
+                    return 'status-online';
+                });
+                
+                const statusText = computed(() => {
+                    if (loading.value) return '同步中...';
+                    if (!ghConf.value.token) return '未配置';
+                    if (isOffline.value) return '离线模式';
+                    return '云端正常';
+                });
 
                 const engines = {
                     baidu: { name: '百度', icon: 'fas fa-paw', url: 'https://www.baidu.com/s?wd=' },
@@ -226,10 +245,7 @@
                 const curY = ref(today.getFullYear());
                 const selD = ref(today.getDate());
                 
-                // 移除了 backgroundStyle computed
-
                 const currentEngineIcon = computed(() => engines[currentEngineKey.value].icon);
-
                 const selDateStr = computed(() => `${curY.value}-${String(curM.value+1).padStart(2,'0')}-${String(selD.value).padStart(2,'0')}`);
                 const currEvents = computed(() => {
                     if(!calendar.value[selDateStr.value]) calendar.value[selDateStr.value] = [];
@@ -253,7 +269,6 @@
                     if (conf) {
                         ghConf.value = JSON.parse(conf);
                         tempConf.value = {...ghConf.value};
-                        // 移除了设置 bgUrl 的逻辑
                     }
 
                     if (cache) {
@@ -262,32 +277,55 @@
                             links.value = data.links || links.value;
                             calendar.value = data.calendar || {};
                             if(data.engine && engines[data.engine]) currentEngineKey.value = data.engine;
-                        } catch(e) {}
+                            console.log("本地数据加载完成");
+                        } catch(e) {
+                            console.error("本地缓存损坏", e);
+                        }
                     }
                 };
 
                 const utf8_to_b64 = (str) => window.btoa(unescape(encodeURIComponent(str)));
                 const b64_to_utf8 = (str) => decodeURIComponent(escape(window.atob(str)));
 
+                // 核心优化：带有超时控制的同步函数
                 const syncCloud = async (isWrite = false) => {
                     if (!ghConf.value.token || !ghConf.value.owner || !ghConf.value.repo) return;
+                    
                     loading.value = true;
+                    connectionError.value = '';
+                    
                     const { owner, repo, path, token } = ghConf.value;
                     const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
 
+                    // 创建一个控制器，用于 3 秒后强制中止请求
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 3000); // 3秒超时
+
                     try {
                         if (!isWrite) {
-                            const res = await fetch(url, { headers: { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github.v3+json' } });
+                            // 读操作
+                            const res = await fetch(url, { 
+                                headers: { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github.v3+json' },
+                                signal: controller.signal // 绑定信号
+                            });
+                            
+                            clearTimeout(timeoutId); // 成功了就清除定时器
+
                             if (res.ok) {
                                 const json = await res.json();
                                 fileSha.value = json.sha;
                                 const content = JSON.parse(b64_to_utf8(json.content));
-                                links.value = content.links || [];
-                                calendar.value = content.calendar || {};
-                                if(content.engine && engines[content.engine]) currentEngineKey.value = content.engine;
+                                // 只有当云端数据有效时才覆盖本地
+                                links.value = content.links || links.value;
+                                calendar.value = content.calendar || calendar.value;
+                                if(content.engine) currentEngineKey.value = content.engine;
                                 cacheLocal();
+                                isOffline.value = false; // 标记为在线
+                            } else {
+                                throw new Error(`Status: ${res.status}`);
                             }
                         } else {
+                            // 写操作
                             const data = { links: links.value, calendar: calendar.value, engine: currentEngineKey.value };
                             const body = {
                                 message: 'Update via Web',
@@ -297,15 +335,25 @@
                             const res = await fetch(url, {
                                 method: 'PUT',
                                 headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' },
-                                body: JSON.stringify(body)
+                                body: JSON.stringify(body),
+                                signal: controller.signal
                             });
+                            
+                            clearTimeout(timeoutId);
+
                             if (res.ok) {
                                 const json = await res.json();
                                 fileSha.value = json.content.sha;
+                                isOffline.value = false;
+                            } else {
+                                throw new Error(`Write Status: ${res.status}`);
                             }
                         }
                     } catch (e) {
-                        console.error("Cloud sync error:", e);
+                        // 捕获所有错误（网络中断、超时、VPN未开）
+                        console.warn("云端同步失败，切换至离线模式:", e);
+                        isOffline.value = true;
+                        connectionError.value = e.name === 'AbortError' ? '连接超时' : '网络不可用';
                     } finally {
                         loading.value = false;
                     }
@@ -313,9 +361,13 @@
 
                 let timer = null;
                 const save = () => {
-                    cacheLocal();
+                    cacheLocal(); // 任何修改，先无条件存本地
                     if (timer) clearTimeout(timer);
-                    timer = setTimeout(() => syncCloud(true), 2000);
+                    
+                    // 如果已经是离线模式，就不频繁重试了，除非用户手动点刷新
+                    if(!isOffline.value) {
+                        timer = setTimeout(() => syncCloud(true), 2000);
+                    }
                 };
 
                 const cacheLocal = () => {
@@ -327,7 +379,7 @@
                     ghConf.value = {...tempConf.value};
                     localStorage.setItem('gh_config', JSON.stringify(ghConf.value));
                     showConfig.value = false;
-                    // 移除了 bgUrl 设置
+                    isOffline.value = false; // 尝试重置状态
                     syncCloud(false);
                 };
 
@@ -343,8 +395,8 @@
                 };
 
                 const addLink = () => {
-                    const name = prompt('网站名称 (Name)');
-                    const url = prompt('网址 (URL, 包含 http://)');
+                    const name = prompt('网站名称');
+                    const url = prompt('网址');
                     if (name && url) { links.value.push({name, url}); save(); }
                 };
 
@@ -358,7 +410,6 @@
                 const selDate = (d) => selD.value = d;
                 const isSel = (d) => d === selD.value;
                 const isToday = (d) => d === today.getDate() && curM.value === today.getMonth();
-                
                 const getDots = (d) => {
                     const k = `${curY.value}-${String(curM.value+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
                     return (calendar.value[k] || []).slice(0,3);
@@ -375,19 +426,25 @@
                 const newEvent = ref('');
 
                 onMounted(() => {
+                    // 1. 立即加载本地数据，保证页面秒开
                     loadLocal();
-                    if(ghConf.value.token) syncCloud(false);
-                    else setTimeout(() => showConfig.value = true, 500);
+                    
+                    // 2. 延迟一点点再去同步云端，避免阻塞主线程渲染
+                    if(ghConf.value.token) {
+                        setTimeout(() => syncCloud(false), 100);
+                    } else {
+                        setTimeout(() => showConfig.value = true, 500);
+                    }
                 });
 
                 return {
                     now, timeString, dateString,
-                    ghConf, tempConf, showConfig, saveConf, loading,
+                    ghConf, tempConf, showConfig, saveConf, loading, isOffline, statusClass, statusText,
                     engines, currentEngineKey, showEngineSelect, selectEngine, currentEngineIcon,
                     searchQuery, doSearch, links, addLink,
                     curM, curY, monthDays, startPad, changeMonth, toToday, selDate, isSel, isToday,
                     selDateStr, currEvents, progressStr, newEvent, addEvent, togEvent, delEvent, save,
-                    getDots
+                    getDots, syncCloud
                 };
             }
         }).mount('#app');
