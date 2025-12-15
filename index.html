@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Start Page</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            overflow-x: hidden;
+            background-color: #333;
+        }
+        .bg-cover-image {
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            transition: background-image 0.5s ease-in-out;
+        }
+        .glass-morphism {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+        }
+        .glass-input {
+            background: rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .text-shadow {
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }
+        .fade-enter-from, .fade-leave-to { opacity: 0; }
+        
+        input::placeholder { color: rgba(255, 255, 255, 0.6); }
+    </style>
+</head>
+<body>
+    <div id="app" class="min-h-screen flex flex-col items-center justify-between text-white relative bg-cover-image" :style="backgroundStyle">
+        
+        <div class="absolute inset-0 bg-black/30 z-0"></div>
+
+        <div class="z-10 w-full max-w-6xl p-4 flex justify-between items-start">
+            <div class="flex items-center gap-2 text-xs opacity-70 hover:opacity-100 transition cursor-pointer" @click="showConfig = true">
+                <i class="fas fa-cog"></i> 
+                <span>{{ githubConfig.token ? '已连接云端' : '未连接' }}</span>
+            </div>
+            <div v-if="loading" class="text-xs opacity-80"><i class="fas fa-sync fa-spin"></i></div>
+        </div>
+
+        <div class="z-10 w-full max-w-3xl flex flex-col items-center mt-10 mb-8 px-4">
+            
+            <div class="text-center mb-12 select-none">
+                <h1 class="text-7xl md:text-9xl font-light tracking-tighter text-shadow">{{ timeString }}</h1>
+                <p class="text-lg md:text-xl font-medium opacity-90 text-shadow mt-2">{{ dateString }}</p>
+            </div>
+
+            <div class="w-full max-w-2xl relative group">
+                <div class="absolute left-2 top-1/2 -translate-y-1/2 z-20">
+                    <div class="relative">
+                        <button @click="showEngineSelect = !showEngineSelect" class="p-2 rounded-lg hover:bg-white/10 transition flex items-center gap-2 text-sm font-bold opacity-90">
+                            <i :class="currentEngineIcon"></i>
+                        </button>
+                        <div v-if="showEngineSelect" class="absolute top-full left-0 mt-2 glass-morphism rounded-lg overflow-hidden flex flex-col min-w-[100px] animate-fade-in">
+                            <button v-for="(eng, key) in engines" :key="key" @click="selectEngine(key)" class="px-4 py-2 text-left hover:bg-white/20 text-sm flex items-center gap-2">
+                                <i :class="eng.icon"></i> {{ eng.name }}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <input 
+                    v-model="searchQuery" 
+                    @keyup.enter="doSearch"
+                    type="text" 
+                    class="w-full glass-input rounded-full py-4 pl-16 pr-14 text-lg text-white outline-none focus:bg-black/40 transition shadow-lg placeholder-gray-300"
+                    :placeholder="'在 ' + engines[currentEngineKey].name + ' 中搜索...'"
+                >
+                <button @click="doSearch" class="absolute right-3 top-1/2 -translate-y-1/2 p-2 hover:text-blue-400 transition opacity-80 hover:opacity-100">
+                    <i class="fas fa-search text-xl"></i>
+                </button>
+            </div>
+
+            <div class="flex flex-wrap justify-center gap-4 mt-8 w-full">
+                <a v-for="(link, i) in links" :key="i" :href="link.url" target="_blank" class="flex flex-col items-center gap-2 group cursor-pointer p-2 rounded-xl hover:bg-white/10 transition w-20">
+                    <div class="w-12 h-12 rounded-2xl glass-morphism flex items-center justify-center text-xl group-hover:scale-110 transition shadow-lg">
+                        {{ link.name.charAt(0).toUpperCase() }}
+                    </div>
+                    <span class="text-xs opacity-80 group-hover:opacity-100 truncate w-full text-center">{{ link.name }}</span>
+                </a>
+                <button @click="addLink" class="flex flex-col items-center gap-2 group cursor-pointer p-2 rounded-xl hover:bg-white/10 transition w-20 opacity-60 hover:opacity-100">
+                    <div class="w-12 h-12 rounded-2xl border border-white/30 border-dashed flex items-center justify-center text-xl">
+                        <i class="fas fa-plus"></i>
+                    </div>
+                    <span class="text-xs">添加</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="z-10 w-full max-w-6xl px-4 pb-6 flex-1 min-h-0 flex flex-col md:flex-row gap-6">
+            
+            <div class="glass-morphism rounded-2xl p-6 flex-1 flex flex-col md:max-w-xs h-[400px]">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="font-bold text-lg">日历</h3>
+                    <div class="flex gap-1 text-xs">
+                        <button @click="changeMonth(-1)" class="w-6 h-6 hover:bg-white/20 rounded"><i class="fas fa-chevron-left"></i></button>
+                        <button @click="toToday" class="px-2 hover:bg-white/20 rounded">今</button>
+                        <button @click="changeMonth(1)" class="w-6 h-6 hover:bg-white/20 rounded"><i class="fas fa-chevron-right"></i></button>
+                    </div>
+                </div>
+                <div class="grid grid-cols-7 text-center text-xs opacity-60 mb-2 font-mono">
+                    <div v-for="d in ['日','一','二','三','四','五','六']">{{d}}</div>
+                </div>
+                <div class="grid grid-cols-7 gap-1 flex-1">
+                    <div v-for="p in startPad" :key="'p'+p"></div>
+                    <div v-for="d in monthDays" :key="d" @click="selDate(d)"
+                         class="rounded-lg flex flex-col items-center justify-center cursor-pointer relative hover:bg-white/20 transition text-sm"
+                         :class="{'bg-blue-500/40 border border-blue-400': isSel(d), 'border border-emerald-400/50': isToday(d)}">
+                        <span>{{d}}</span>
+                        <div class="flex gap-0.5 mt-1">
+                            <div v-for="(dot, di) in getDots(d)" :key="di" class="w-1 h-1 rounded-full" :class="dot.done ? 'bg-gray-400' : 'bg-blue-400'"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="glass-morphism rounded-2xl p-6 flex-[2] flex flex-col h-[400px]">
+                <div class="flex justify-between items-center mb-4 pb-2 border-b border-white/10">
+                    <div>
+                        <span class="text-xs opacity-60 uppercase tracking-widest">{{ currentYear }}.{{ currentMonth+1 }}</span>
+                        <h2 class="text-2xl font-bold">{{ selDateStr }}</h2>
+                    </div>
+                    <div class="text-xs opacity-60">{{ progressStr }}</div>
+                </div>
+
+                <div class="flex-1 overflow-y-auto no-scrollbar space-y-2 pr-2">
+                    <div v-if="!currEvents.length" class="h-full flex flex-col items-center justify-center opacity-40">
+                        <i class="far fa-calendar-check text-4xl mb-2"></i>
+                        <p>今日暂无安排</p>
+                    </div>
+                    <div v-for="(ev, idx) in currEvents" :key="idx" class="flex items-center gap-3 bg-black/20 p-3 rounded-xl hover:bg-black/30 transition group">
+                        <button @click="togEvent(idx)" class="w-5 h-5 rounded-full border border-white/40 flex items-center justify-center transition" :class="{'bg-emerald-500 border-none': ev.done}">
+                            <i v-if="ev.done" class="fas fa-check text-[10px]"></i>
+                        </button>
+                        <input v-model="ev.text" @change="save" class="flex-1 bg-transparent outline-none text-sm" :class="{'opacity-50 line-through': ev.done}">
+                        <button @click="delEvent(idx)" class="opacity-0 group-hover:opacity-100 hover:text-red-400 transition"><i class="fas fa-trash"></i></button>
+                    </div>
+                </div>
+
+                <div class="mt-4 flex gap-2">
+                    <input v-model="newEvent" @keyup.enter="addEvent" placeholder="添加新日程..." class="flex-1 glass-input rounded-lg px-4 py-2 text-sm outline-none focus:bg-black/40 transition">
+                    <button @click="addEvent" class="px-4 py-2 bg-blue-600/80 hover:bg-blue-500 rounded-lg text-sm font-bold backdrop-blur-sm transition">添加</button>
+                </div>
+            </div>
+
+        </div>
+
+        <div v-if="showConfig" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+            <div class="glass-morphism p-6 rounded-2xl w-full max-w-md m-4">
+                <h3 class="text-xl font-bold mb-4">云端设置</h3>
+                <div class="space-y-4 text-sm">
+                    <div>
+                        <label class="block mb-1 opacity-70">GitHub Token</label>
+                        <input type="password" v-model="tempConf.token" class="w-full glass-input p-2 rounded outline-none">
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block mb-1 opacity-70">用户名</label>
+                            <input v-model="tempConf.owner" class="w-full glass-input p-2 rounded outline-none">
+                        </div>
+                        <div>
+                            <label class="block mb-1 opacity-70">仓库名</label>
+                            <input v-model="tempConf.repo" class="w-full glass-input p-2 rounded outline-none">
+                        </div>
+                    </div>
+                    <p class="text-xs opacity-50">* 配置将加密存储在本地浏览器中。背景图请在仓库根目录上传 "beijing.jpg"。</p>
+                </div>
+                <div class="mt-6 flex justify-end gap-3">
+                    <button @click="showConfig = false" class="px-4 py-2 rounded hover:bg-white/10 transition">取消</button>
+                    <button @click="saveConf" class="px-4 py-2 bg-blue-600 rounded hover:bg-blue-500 transition">保存并同步</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const { createApp, ref, computed, onMounted, watch } = Vue;
+
+        createApp({
+            setup() {
+                const STORAGE_KEY = 'lime_start_cache';
+                const showConfig = ref(false);
+                const loading = ref(false);
+                const bgUrl = ref('');
+                
+                const ghConf = ref({ token: '', owner: '', repo: '', path: 'data.json' });
+                const tempConf = ref({...ghConf.value});
+                const fileSha = ref(null);
+
+                const now = ref(new Date());
+                const timeString = computed(() => now.value.toLocaleTimeString('en-US', {hour12: false, hour:'2-digit', minute:'2-digit'}));
+                const dateString = computed(() => now.value.toLocaleDateString('zh-CN', {weekday:'long', month:'long', day:'numeric'}));
+
+                const engines = {
+                    baidu: { name: '百度', icon: 'fas fa-paw', url: 'https://www.baidu.com/s?wd=' },
+                    google: { name: 'Google', icon: 'fab fa-google', url: 'https://www.google.com/search?q=' },
+                    bing: { name: '必应', icon: 'fab fa-microsoft', url: 'https://www.bing.com/search?q=' },
+                    so: { name: '360', icon: 'fas fa-shield-alt', url: 'https://www.so.com/s?q=' }
+                };
+                const currentEngineKey = ref('baidu');
+                const showEngineSelect = ref(false);
+                const searchQuery = ref('');
+
+                const links = ref([
+                    {name: 'GitHub', url: 'https://github.com'},
+                    {name: 'Bilibili', url: 'https://bilibili.com'},
+                    {name: 'Gmail', url: 'https://mail.google.com'}
+                ]);
+                const calendar = ref({});
+
+                const today = new Date();
+                const curM = ref(today.getMonth());
+                const curY = ref(today.getFullYear());
+                const selD = ref(today.getDate());
+                
+                const backgroundStyle = computed(() => {
+                    return bgUrl.value ? { backgroundImage: `url(${bgUrl.value})` } : { backgroundColor: '#2d3748' };
+                });
+
+                const currentEngineIcon = computed(() => engines[currentEngineKey.value].icon);
+
+                const selDateStr = computed(() => `${curY.value}-${String(curM.value+1).padStart(2,'0')}-${String(selD.value).padStart(2,'0')}`);
+                const currEvents = computed(() => {
+                    if(!calendar.value[selDateStr.value]) calendar.value[selDateStr.value] = [];
+                    return calendar.value[selDateStr.value];
+                });
+                const progressStr = computed(() => {
+                    const total = currEvents.value.length;
+                    const done = currEvents.value.filter(e => e.done).length;
+                    return total ? `${done}/${total}` : '';
+                });
+
+                const monthDays = computed(() => new Date(curY.value, curM.value + 1, 0).getDate());
+                const startPad = computed(() => new Date(curY.value, curM.value, 1).getDay());
+
+                setInterval(() => { now.value = new Date(); }, 1000);
+
+                const loadLocal = () => {
+                    const cache = localStorage.getItem(STORAGE_KEY);
+                    const conf = localStorage.getItem('gh_config');
+                    
+                    if (conf) {
+                        ghConf.value = JSON.parse(conf);
+                        tempConf.value = {...ghConf.value};
+                        if (ghConf.value.owner && ghConf.value.repo) {
+                            bgUrl.value = `https://raw.githubusercontent.com/${ghConf.value.owner}/${ghConf.value.repo}/main/beijing.jpg`;
+                        }
+                    }
+
+                    if (cache) {
+                        try {
+                            const data = JSON.parse(cache);
+                            links.value = data.links || links.value;
+                            calendar.value = data.calendar || {};
+                            if(data.engine) currentEngineKey.value = data.engine;
+                        } catch(e) {}
+                    }
+                };
+
+                const utf8_to_b64 = (str) => window.btoa(unescape(encodeURIComponent(str)));
+                const b64_to_utf8 = (str) => decodeURIComponent(escape(window.atob(str)));
+
+                const syncCloud = async (isWrite = false) => {
+                    if (!ghConf.value.token) return;
+                    loading.value = true;
+                    const { owner, repo, path, token } = ghConf.value;
+                    const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
+
+                    try {
+                        if (!isWrite) {
+                            const res = await fetch(url, { headers: { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github.v3+json' } });
+                            if (res.ok) {
+                                const json = await res.json();
+                                fileSha.value = json.sha;
+                                const content = JSON.parse(b64_to_utf8(json.content));
+                                links.value = content.links;
+                                calendar.value = content.calendar;
+                                if(content.engine) currentEngineKey.value = content.engine;
+                                cacheLocal();
+                            }
+                        } else {
+                            const data = { links: links.value, calendar: calendar.value, engine: currentEngineKey.value };
+                            const body = {
+                                message: 'Update',
+                                content: utf8_to_b64(JSON.stringify(data)),
+                                sha: fileSha.value
+                            };
+                            const res = await fetch(url, {
+                                method: 'PUT',
+                                headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' },
+                                body: JSON.stringify(body)
+                            });
+                            if (res.ok) {
+                                const json = await res.json();
+                                fileSha.value = json.content.sha;
+                            }
+                        }
+                    } catch (e) {
+                        console.error(e);
+                    } finally {
+                        loading.value = false;
+                    }
+                };
+
+                let timer = null;
+                const save = () => {
+                    cacheLocal();
+                    if (timer) clearTimeout(timer);
+                    timer = setTimeout(() => syncCloud(true), 2000);
+                };
+
+                const cacheLocal = () => {
+                    const data = { links: links.value, calendar: calendar.value, engine: currentEngineKey.value };
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+                };
+
+                const saveConf = () => {
+                    ghConf.value = {...tempConf.value};
+                    localStorage.setItem('gh_config', JSON.stringify(ghConf.value));
+                    showConfig.value = false;
+                    bgUrl.value = `https://raw.githubusercontent.com/${ghConf.value.owner}/${ghConf.value.repo}/main/beijing.jpg`;
+                    syncCloud(false);
+                };
+
+                const selectEngine = (key) => {
+                    currentEngineKey.value = key;
+                    showEngineSelect.value = false;
+                    save();
+                };
+
+                const doSearch = () => {
+                    if (!searchQuery.value) return;
+                    window.open(engines[currentEngineKey.value].url + encodeURIComponent(searchQuery.value), '_blank');
+                };
+
+                const addLink = () => {
+                    const name = prompt('Name');
+                    const url = prompt('URL');
+                    if (name && url) { links.value.push({name, url}); save(); }
+                };
+
+                const changeMonth = (d) => {
+                    let m = curM.value + d;
+                    if(m>11){curM.value=0;curY.value++}
+                    else if(m<0){curM.value=11;curY.value--}
+                    else{curM.value=m}
+                };
+                const toToday = () => { curM.value = today.getMonth(); curY.value = today.getFullYear(); selD.value = today.getDate(); };
+                const selDate = (d) => selD.value = d;
+                const isSel = (d) => d === selD.value;
+                const isToday = (d) => d === today.getDate() && curM.value === today.getMonth();
+                
+                const getDots = (d) => {
+                    const k = `${curY.value}-${String(curM.value+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+                    return (calendar.value[k] || []).slice(0,3);
+                };
+                
+                const addEvent = () => {
+                    if(!newEvent.value) return;
+                    currEvents.value.push({text: newEvent.value, done: false});
+                    newEvent.value = '';
+                    save();
+                };
+                const togEvent = (i) => { currEvents.value[i].done = !currEvents.value[i].done; save(); };
+                const delEvent = (i) => { currEvents.value.splice(i, 1); save(); };
+                const newEvent = ref('');
+
+                onMounted(() => {
+                    loadLocal();
+                    if(ghConf.value.token) syncCloud(false);
+                    else showConfig.value = true;
+                });
+
+                return {
+                    now, timeString, dateString,
+                    ghConf, tempConf, showConfig, saveConf, loading,
+                    engines, currentEngineKey, showEngineSelect, selectEngine, currentEngineIcon,
+                    searchQuery, doSearch, links, addLink,
+                    curM, curY, monthDays, startPad, changeMonth, toToday, selDate, isSel, isToday,
+                    selDateStr, currEvents, progressStr, newEvent, addEvent, togEvent, delEvent, save,
+                    getDots, backgroundStyle
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
